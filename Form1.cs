@@ -34,12 +34,14 @@ namespace BTVM
 
     public partial class Form1 : Form, IMessageListener1
     {
-        const string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=D:\PROJECTS\C#\BTVM_TEST\BTVM.mdf;Integrated Security=True;Connect Timeout=30";
+        const string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=D:\PROJECTS\C#\BTVM\BTVM.mdf;Integrated Security=True;Connect Timeout=30";
         static readonly HttpClient client = new HttpClient();
         string apiResponse = "";
+        
 
         public Form1()
         {
+            //initialize the messeging components
             InitializeComponent();
             Broadcaster().AddListener(this);
             Closing += Form1_Closing;
@@ -61,7 +63,7 @@ namespace BTVM
 
 
         private void last_update()
-        {
+        {            
             if ((DateTime.Now - Properties.Settings.Default.LastUpdate).TotalDays > 7)
             {
                 //Will put code here to update the time ran and call login and update shows or whatnot.
@@ -86,16 +88,18 @@ namespace BTVM
 
             //export config date, folder to xml file
             login(config);
-            textBox1.AppendText(apiResponse);
-            textBox1.AppendText(System.Environment.NewLine + System.Environment.NewLine);
+            //textBox1.AppendText(apiResponse);
+            //textBox1.AppendText(System.Environment.NewLine + System.Environment.NewLine);
 
 
             //get_show_id(apiResponse);
             //textBox1.AppendText(apiResponse);
             //textBox1.AppendText(System.Environment.NewLine + System.Environment.NewLine);
 
+            //pulls JSON data from TVdb and adds to SQL
             update_shows(config);
 
+            //code to com
             //SQL_add_shows();
             //SQL_get_shows();
         }
@@ -141,19 +145,31 @@ namespace BTVM
         private void update_shows(AppConfig config)
         {
             List<string> folderData = new List<string>();
+            List<string> showList = new List<string>();
 
             folderData = read_show_folder("D:\\PROJECTS\\Fake show folder");
 
+            //get show series ID, name, status and add to shows table
             foreach (string fItem in folderData)
             {
                 get_show_metadata(fItem, config.Token);
             }
 
+            //code to pull episodes for each show from API and add to SQL
 
-            //needs Update has list of shows we need to get show ID and add to table
+            //use SQL to get list of shows - DONE
+            //then get episode info from API - DONE
+            //then update SQL episodes table - DONE
+            //then compare SQL episodes to folders 
+            
+
+            showList = SQL_get_all_show_IDs();
+            
+            foreach (string item in showList)
+            {
+                get_episode_metadata(item, config.Token);
+            }
         }
-
-
         private List<string> read_show_folder(string dirPath)
         {
             List<string> showList = new List<string>();
@@ -167,14 +183,21 @@ namespace BTVM
             return showList;
         }
 
+        //private List<string> read_show_folder_episodes()
+        //{ 
+        
+        //}
+
         async void get_show_metadata(string seriesName, string authToken) //gets the series meta data (name, id, status etc)
         {
             //curl -X GET --header 'Accept: application/json' --header 'Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1NjI1NTE5NjIsImlkIjoiIiwib3JpZ19pYXQiOjE1NjI0NjU1NjJ9.kIzQdUDKDC7Apk3clfm9aiT8e17pRyjUw0agt9sehEZMAHI_AvYKl9__8OznMEwRCU8EW-rBbxqFTg4gG_choFMTa5KNFuGa4KRB2VZX07FhrSbmRhk12WRYQ04U_bRpiY3Np95Sey88h2n001XdkXdBdd5wk6ShmG9yIfAojby1sDqvXeOgUwoxdvBttQxWfCNQdQDCBlQ0TCA6z9jhTu7qP_g_qrCXzW7kA6FlgC-hXTsqL25ITA57W2-4Zq-vgssQFKvCKkBkNTCtSacFhiIzeiqyj9tONCqb962QfdAHht4VNGPn3n0nAtwFTqJrI_mHm7DJH4LznCPLNRwYDQ' 'https://api.thetvdb.com/search/series?name=APB'
             string URI = "https://api.thetvdb.com/search/series?name=" + seriesName;
             var response = new HttpResponseMessage();
             List<string> idList = new List<string>();
+            List<string> showInfo = new List<string>();
             bool found = false;
 
+            
             try
             {
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -200,7 +223,7 @@ namespace BTVM
                 for (int i = 0; i < showData["data"].Count(); i++)
                 {
                     string temp;
-                    temp = get_show_id(apiResponse, i);
+                    temp = JSON_parse_show_id(apiResponse, i);
                     found = SQL_check_show_record(temp);
                     if (found == true)
                     {
@@ -221,41 +244,45 @@ namespace BTVM
                     idSelForm.Show();
                     this.Hide();
                 }
+                                
             }
             else
-            {
-                //need to convert response to show id, name, status and insert
-                //SQL_insert_show()
-            }
+            {   
+                showInfo.Add(JSON_parse_show_id(apiResponse, 0));
+                showInfo.Add(JSON_parse_show_name(apiResponse, 0));
+                showInfo.Add(JSON_parse_show_status(apiResponse, 0));
+                SQL_insert_show(showInfo);
+            }                      
         }
 
-        async void get_epi_info(string seriesID, string authToken)
+        async void get_episode_metadata(string seriesID, string authToken)
         {
             string URI = "https://api.thetvdb.com/series/" + seriesID + "/episodes";
             var response = new HttpResponseMessage();
-
+            List<string> allEpisodes = new List<string>();
+            
             try
             {
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 response = client.GetAsync(URI).Result;
                 apiResponse = await response.Content.ReadAsStringAsync();
+                textBox1.AppendText(apiResponse);
             }
-
             catch (Exception e)
             {
                 textBox1.AppendText(e.Source);
-            }
+            }            
 
+            allEpisodes = JSON_parse_episode_metadata(apiResponse);
 
+            for (int i = 0; i < allEpisodes.Count; i+=5)
+            {
+                SQL_insert_episode(allEpisodes.GetRange(i, 5));
+            }          
         }
 
-        private string JSON_parse_show_id(String jsonData)
-        {
-            JObject data = JObject.Parse(jsonData);
-            string id = (string)data["data"][0]["id"];
-            return id;
-        }
+        
         private string JSON_parse_show_id(String jsonData, int iterator)
         {
             JObject data = JObject.Parse(jsonData);
@@ -263,13 +290,37 @@ namespace BTVM
             return id;
         }
 
-        private List<string> JSON_parse_show_metadata(string jsonData)
+        private string JSON_parse_show_name(String jsonData, int iterator)
         {
-            List<string> metaData = new List<string>;
-            JObject data = JObject.Parse(jsonData);            
-            
-           return metaData;
+            JObject data = JObject.Parse(jsonData);
+            string name = (string)data["data"][iterator]["seriesName"];
+            return name;
         }
+        private string JSON_parse_show_status(String jsondata, int iterator)
+        {
+            JObject data = JObject.Parse(jsondata);
+            string status = (string)data["data"][iterator]["status"];
+            return status;
+        }
+        private List<string> JSON_parse_episode_metadata(string jsonData)
+        {
+            List<string> metaData = new List<string>();
+                       
+            JObject episodeData = JObject.Parse(jsonData);
+            int count = episodeData["data"].Count();
+
+            for (int i = 0; i < count; i++)
+            { 
+                metaData.Add((string)episodeData["data"][i]["id"]);
+                metaData.Add((string)episodeData["data"][i]["airedSeason"]);
+                metaData.Add((string)episodeData["data"][i]["airedEpisodeNumber"]);
+                metaData.Add((string)episodeData["data"][i]["episodeName"]);
+                metaData.Add((string)episodeData["data"][i]["seriesId"]);
+            }  
+
+            return metaData;
+        }
+
 
 
         //*********************************************************************************************************
@@ -277,13 +328,13 @@ namespace BTVM
         //*********************************************************************************************************
                
         //NEED TO INCLUDE ID ADND STATUS FOR COMAPRO
-        private List<string> SQL_get_all_shows()
+        private List<string> SQL_get_all_show_IDs()
         {
-            List<string> shows = new List<string>();
+            List<string> showIDs = new List<string>();
             
             using (SqlConnection SQLconn = new SqlConnection(connectionString))
             {
-                SqlCommand command = new SqlCommand("SELECT * FROM  SHOWS", SQLconn);
+                SqlCommand command = new SqlCommand("SELECT seriesId FROM  SHOWS", SQLconn);
 
                 try
                 {
@@ -296,7 +347,8 @@ namespace BTVM
 
                     while (reader.Read())
                     {
-                        textBox1.AppendText(reader.GetString(1));
+                        showIDs.Add(reader.GetString(0));
+                        textBox1.AppendText(reader.GetString(0));
                     }
                     reader.Close();
                 }
@@ -306,17 +358,14 @@ namespace BTVM
                 }
                 SQLconn.Close();
             }
-            return shows;
+            return showIDs;
         }
 
         private  bool SQL_check_show_record(string showID)
         {
-            
-
-
             using (SqlConnection SQLconn = new SqlConnection(connectionString))
             {
-                SqlCommand command = new SqlCommand("SELECT id FROM SHOWS WHERE id = '" + showID + "'", SQLconn);
+                SqlCommand command = new SqlCommand("SELECT seriesId FROM SHOWS WHERE seriesId = '" + showID + "'", SQLconn);
                 
                 try
                 {
@@ -349,23 +398,60 @@ namespace BTVM
         {
             using (SqlConnection SQLconn = new SqlConnection(connectionString))
             {
-                SqlCommand command = new SqlCommand("INSERT INTO SHOWS (id, seriesName, status) VALUES('" + showData[0] + "', '" + showData[1] + "', '" + showData[2] +"')", SQLconn);
+                SqlCommand cmdExists = new SqlCommand("SELECT * FROM SHOWS WHERE SHOWS.seriesId = '" + showData[0] + "'", SQLconn);
+                SqlCommand cmdInsert = new SqlCommand("INSERT INTO SHOWS (seriesId, seriesName, status) VALUES ('" + showData[0] + "', '" + showData[1] + "', '" + showData[2] +"')", SQLconn);
+
+                //need this if else for checking if ID already exists
                 
+                if (SQLconn.State == ConnectionState.Closed)
+                {
+                    SQLconn.Open();
+                }
+
+                object showExists = cmdExists.ExecuteScalar();
+                
+                if (showExists == null)
+                {
+                    try
+                    {
+                        cmdInsert.ExecuteScalar();
+                    }
+                    catch (Exception e)
+                    {
+                        MessageBox.Show(e.Message, "ERROR");
+                    }
+                }                                    
+                SQLconn.Close();                
+            }
+           
+        }
+
+        private void SQL_insert_episode(List<string> episodeData)
+        {
+            //SQL -  seriesId seasonNum episodeNum episodeName
+            //JSON - seriesId airedSeason airedEpisodeNumber episodeName
+            
+            using (SqlConnection SQLconn = new SqlConnection(connectionString))
+            { 
+                SqlCommand cmdInsert = new SqlCommand("INSERT INTO EPISODES (episodeId, seasonNum, episodeNum, episodeName,seriesId) VALUES ('" + episodeData[0] + "', '" + episodeData[1] + "', '" + episodeData[2] + "', '" + episodeData[3] + "', '" + episodeData[4] + "')", SQLconn);
+
                 try
                 {
                     if (SQLconn.State == ConnectionState.Closed)
                     {
                         SQLconn.Open();
                     }
-                   command.ExecuteScalar();
+
+                    cmdInsert.ExecuteScalar();
                 }
                 catch (Exception e)
                 {
                     MessageBox.Show(e.Message, "ERROR");
                 }
-                SQLconn.Close();                
+                
+                SQLconn.Close();            
             }
-           
+
         }
 
         //****************************************************************************************************************************

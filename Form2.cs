@@ -42,6 +42,7 @@ namespace BTVM
         /// </summary>
         /// <param name="Message">Incoming message</param>
         /// <param name="sender">Calling form</param>
+        /// 
         public void OnListen(List<string> idArray, string apiResponse, Form sender)
         {
             if (sender is Form1)
@@ -71,18 +72,17 @@ namespace BTVM
             if (comboBox1.SelectedIndex > -1)
             {
                 //work around because I haven't figured out how to have a second Listener
-                List<string> showName= new List<string>();
-
-                
+                List<string> showData = new List<string>();
+                                
                 string jsonData = richTextBox1.Text.ToString();
                 JObject data = JObject.Parse(jsonData);
                 
-                showName.Add(comboBox1.SelectedItem.ToString());
-                showName.Add((string)data["data"][comboBox1.SelectedIndex]["seriesName"]);
-                showName.Add((string)data["data"][comboBox1.SelectedIndex]["status"]);
+                showData.Add(comboBox1.SelectedItem.ToString());
+                showData.Add((string)data["data"][comboBox1.SelectedIndex]["seriesName"]);
+                showData.Add((string)data["data"][comboBox1.SelectedIndex]["status"]);
 
                 string blank= null;
-                Broadcaster().Broadcast(showName, blank, this);
+                Broadcaster().Broadcast(showData, blank, this);
                 this.Close();
             }
             else
