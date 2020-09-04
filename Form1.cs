@@ -17,13 +17,26 @@ using static BTVM.Classes.Factory;
 
 //TESTING RESPONSE DATA
 
+//DO FIRST FIX CODE FOR DIRECTORY: 
+//FIGURE OUT HOW TO SAVE AS A SETTTING
+//GOING TO NEED A CLASS MEMBER FOR WORKING FOLDER
+//NEED A TEXTBOX TO PULL FROM CONFIG 
+//CHECKBOX PROMPT FOR ADD
+//SAVE TO CLASS MEMBER
+
 //TODO list
-//1. method to read list of show folders and put into DB
-//2. method to read list of show episodes and put into DB
-//3. code to iterate through list of shows and make API calls
-//4. code to put show meta data into DB
-//5. code to put episode info into DB - from api (name of ep)
-//6. code to put episode info into DB - from my files (video type, size, lenght etc. USE windows system32.dll??)
+//1. method to read list of show folders and put into DB - DONE
+//2. method to read show info from API and put into DB
+//3. method to read list of show episodes and put into DB - 
+//4. method to read episode info from API and put into DB
+//5. code to iterate through list of shows and make API calls
+//6. code to put show meta data into DB
+//7. code to put episode info into DB - from api (name of ep)
+//8. code to put episode info into DB - from my files (video type, size, lenght etc. USE windows system32.dll??)
+//9. missing episodes search
+//10. upcoming episodes search
+//11. episode file metadata, size, frame height/width, file type
+
 
 //LISTENER STUFF
 //need to add to current listener to pass a string from form1 to form2 of apiresponse already have code to parse it out
@@ -153,22 +166,19 @@ namespace BTVM
             foreach (string fItem in folderData)
             {
                 get_show_metadata(fItem, config.Token);
-            }
+            }            
 
-            //code to pull episodes for each show from API and add to SQL
-
-            //use SQL to get list of shows - DONE
-            //then get episode info from API - DONE
-            //then update SQL episodes table - DONE
-            //then compare SQL episodes to folders 
-            
-
+            //get all show IDs from SHOW table
             showList = SQL_get_all_show_IDs();
             
+            //get episode metadata from API using show IDs
             foreach (string item in showList)
             {
                 get_episode_metadata(item, config.Token);
             }
+
+            read_show_episodes();
+
         }
         private List<string> read_show_folder(string dirPath)
         {
@@ -183,10 +193,20 @@ namespace BTVM
             return showList;
         }
 
-        //private List<string> read_show_folder_episodes()
-        //{ 
-        
-        //}
+        private List<string> read_show_episodes()
+        {
+            List<string> shows = new List<string>();
+            List<string> episodes = new List<string>();
+
+
+
+            //read directory of shows into list
+            //for loop to iterate through show list
+            //code to go into season directories and add episdoes to list
+            //SQL method to insert episodes as into Episodes table as found
+
+            return episodes;
+        }
 
         async void get_show_metadata(string seriesName, string authToken) //gets the series meta data (name, id, status etc)
         {
@@ -515,6 +535,8 @@ namespace BTVM
             private string apikey = "AAT3EO3BZULRNBKS";
             private string token;
             private DateTime date;
+            private string showDir;
+
             public string Apikey
             {
                 get
@@ -537,7 +559,6 @@ namespace BTVM
                     token = value;
                 }
             }
-
             public DateTime Date
             {
                 get
@@ -547,6 +568,17 @@ namespace BTVM
                 set
                 {
                     date = value;
+                }
+            }
+            public string ShowDir
+            {        
+                get
+                {
+                    return showDir;
+                }
+                set
+                {
+                    showDir = value;
                 }
             }
 
