@@ -24,18 +24,21 @@ using static BTVM.Classes.Factory;
 //CHECKBOX PROMPT FOR ADD
 //SAVE TO CLASS MEMBER
 
+//DONE
+// method to read list of show folders and put into DB - DONE
+
+
 //TODO list
-//1. method to read list of show folders and put into DB - DONE
-//2. method to read show info from API and put into DB
-//3. method to read list of show episodes and put into DB - 
-//4. method to read episode info from API and put into DB
-//5. code to iterate through list of shows and make API calls
-//6. code to put show meta data into DB
-//7. code to put episode info into DB - from api (name of ep)
-//8. code to put episode info into DB - from my files (video type, size, lenght etc. USE windows system32.dll??)
-//9. missing episodes search
-//10. upcoming episodes search
-//11. episode file metadata, size, frame height/width, file type
+// method to read show info from API and put into DB - 
+// method to read list of show episodes and put into DB - 
+// method to read episode info from API and put into DB
+// code to iterate through list of shows and make API calls
+// code to put show meta data into DB
+// code to put episode info into DB - from api (name of ep)
+// code to put episode info into DB - from my files (video type, size, lenght etc. USE windows system32.dll??)
+// missing episodes search
+// upcoming episodes search
+// episode file metadata, size, frame height/width, file type
 
 
 //LISTENER STUFF
@@ -44,14 +47,12 @@ using static BTVM.Classes.Factory;
 
 namespace BTVM
 {
-
     public partial class Form1 : Form, IMessageListener1
     {
         const string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=D:\PROJECTS\C#\BTVM\BTVM.mdf;Integrated Security=True;Connect Timeout=30";
         static readonly HttpClient client = new HttpClient();
         string apiResponse = "";
-        
-
+ 
         public Form1()
         {
             //initialize the messeging components
@@ -64,6 +65,7 @@ namespace BTVM
         private void Form1_Load(object sender, EventArgs e)
         {
             last_update();
+            check_config();
         }
 
         public void OnListen(List<string> listMessage, string strMessage, Form sender)
@@ -73,7 +75,6 @@ namespace BTVM
                 SQL_insert_show(listMessage);
             }
         }
-
 
         private void last_update()
         {            
@@ -89,7 +90,12 @@ namespace BTVM
                 Properties.Settings.Default.Save();
                 textBox1.AppendText("New time: " + Properties.Settings.Default.LastUpdate);
             }
+        }
 
+        //check for folder that holds TV show media files
+        private void check_config()
+        { 
+                            
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -98,12 +104,12 @@ namespace BTVM
 
             //add folder location to config class
 
-
             //export config date, folder to xml file
+
             login(config);
+
             //textBox1.AppendText(apiResponse);
             //textBox1.AppendText(System.Environment.NewLine + System.Environment.NewLine);
-
 
             //get_show_id(apiResponse);
             //textBox1.AppendText(apiResponse);
@@ -111,10 +117,7 @@ namespace BTVM
 
             //pulls JSON data from TVdb and adds to SQL
             update_shows(config);
-
-            //code to com
-            //SQL_add_shows();
-            //SQL_get_shows();
+            
         }
 
         async void login(AppConfig config) //logs into API using API key, sets token from reply
@@ -301,7 +304,6 @@ namespace BTVM
                 SQL_insert_episode(allEpisodes.GetRange(i, 5));
             }          
         }
-
         
         private string JSON_parse_show_id(String jsonData, int iterator)
         {
@@ -341,12 +343,23 @@ namespace BTVM
             return metaData;
         }
 
+        //*********************************************************************************************************
+        //Tool Strip methods
+        //*********************************************************************************************************
+        private void quitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
 
+        private void optionsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
 
         //*********************************************************************************************************
         //SQL Methods
         //*********************************************************************************************************
-               
+
         //NEED TO INCLUDE ID ADND STATUS FOR COMAPRO
         private List<string> SQL_get_all_show_IDs()
         {
@@ -437,8 +450,8 @@ namespace BTVM
                         cmdInsert.ExecuteScalar();
                     }
                     catch (Exception e)
-                    {
-                        MessageBox.Show(e.Message, "ERROR");
+                    { 
+                        MessageBox.Show(e.Message, "ERROR");                       
                     }
                 }                                    
                 SQLconn.Close();                
@@ -466,9 +479,15 @@ namespace BTVM
                 }
                 catch (Exception e)
                 {
-                    MessageBox.Show(e.Message, "ERROR");
+                    if (e.Message.Contains("Violation of PRIMARY KEY constraint"))
+                    {
+                        textBox1.AppendText(e.Message + Environment.NewLine);
+                    }
+                    else
+                    {
+                        MessageBox.Show(e.Message, "ERROR");
+                    }
                 }
-                
                 SQLconn.Close();            
             }
 
