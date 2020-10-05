@@ -17,6 +17,7 @@ using static BTVM.Classes.Factory;
 
 //TESTING RESPONSE DATA
 
+//HUGE TODO CODE TO CREATE DB if not found in default run path
 //DO FIRST FIX CODE FOR DIRECTORY: 
 //FIGURE OUT HOW TO SAVE AS A SETTTING
 //GOING TO NEED A CLASS MEMBER FOR WORKING FOLDER
@@ -27,15 +28,7 @@ using static BTVM.Classes.Factory;
 //DONE
 // method to read list of show folders and put into DB - DONE
 
-
-//TODO list
-// method to read show info from API and put into DB - 
-// method to read list of show episodes and put into DB - 
-// method to read episode info from API and put into DB
-// code to iterate through list of shows and make API calls
-// code to put show meta data into DB
-// code to put episode info into DB - from api (name of ep)
-// code to put episode info into DB - from my files (video type, size, lenght etc. USE windows system32.dll??)
+    
 // missing episodes search
 // upcoming episodes search
 // episode file metadata, size, frame height/width, file type
@@ -48,15 +41,17 @@ using static BTVM.Classes.Factory;
 namespace BTVM
 {
     public partial class Form1 : Form, IMessageListener1
-    {
-        const string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=D:\PROJECTS\C#\BTVM\BTVM.mdf;Integrated Security=True;Connect Timeout=30";
+    { 
+        //THIS IS GOING TO NEED TO BE UPDATED
+         
+        string connectionString = @"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=" + Environment.CurrentDirectory + "\\BTVM.MDF;Integrated Security=True;Connect Timeout=30";
         static readonly HttpClient client = new HttpClient();
         string apiResponse = "";
- 
+
         public Form1()
         {
-            //initialize the messeging components
             InitializeComponent();
+            //initialize the messeging components
             Broadcaster().AddListener(this);
             Closing += Form1_Closing;
             Shown += Form1_Shown;
@@ -64,8 +59,9 @@ namespace BTVM
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            last_update();
-            check_config();
+            last_update();            
+            check_database();
+            label2.Text = (BTVM.Properties.Settings.Default.MediaFolder);
         }
 
         public void OnListen(List<string> listMessage, string strMessage, Form sender)
@@ -77,7 +73,7 @@ namespace BTVM
         }
 
         private void last_update()
-        {            
+        {
             if ((DateTime.Now - Properties.Settings.Default.LastUpdate).TotalDays > 7)
             {
                 //Will put code here to update the time ran and call login and update shows or whatnot.
@@ -94,8 +90,20 @@ namespace BTVM
 
         //check for folder that holds TV show media files
         private void check_config()
-        { 
-                            
+        {
+            if (BTVM.Properties.Settings.Default.MediaFolder == "")
+            {
+                Form3 mediaFolderForm = new Form3();
+                mediaFolderForm.Show();
+            }
+        }
+        
+        private void check_database()
+        {
+            if (false == File.Exists(Environment.CurrentDirectory + "\\BTVM.MDF")) 
+            {
+                SQL_create_DB();                          
+            }            
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -163,7 +171,7 @@ namespace BTVM
             List<string> folderData = new List<string>();
             List<string> showList = new List<string>();
 
-            folderData = read_show_folder("D:\\PROJECTS\\Fake show folder");
+            folderData = read_show_folder(BTVM.Properties.Settings.Default.MediaFolder);
 
             //get show series ID, name, status and add to shows table
             foreach (string fItem in folderData)
@@ -353,12 +361,64 @@ namespace BTVM
 
         private void optionsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-
+            
         }
 
         //*********************************************************************************************************
         //SQL Methods
         //*********************************************************************************************************
+
+        private void SQL_create_DB()
+        {
+            string connString = @"Data Source=(LocalDB)\MSSQLLocalDB;Integrated Security=True;Connect Timeout=30";
+            string runDir = Environment.CurrentDirectory;
+
+            string createDB = "CREATE DATABASE BTVM ON PRIMARY " +
+               "(NAME = BTVM_Data, " +
+               "FILENAME = '" + runDir + "\\BTVM.mdf', " +
+               "SIZE = 2MB, MAXSIZE = 10MB, FILEGROWTH = 10%) ";
+
+
+            string createEpiTbl = @"CREATE TABLE [BTVM].[dbo].[EPISODES] (
+                [episodeId] NCHAR(25)  NOT NULL,
+                [SeasonNum]     NCHAR(10)  NULL,
+                [EpisodeNum] NCHAR(10)  NULL,
+                [EpisodeName] NCHAR(255) NULL,
+                [seriesId] NCHAR(25)  NULL,
+                [episodeStatus] NCHAR(25)  DEFAULT('missing') NULL,
+                PRIMARY KEY CLUSTERED([episodeId] ASC)
+                );";
+
+            string createShowTbl = @"CREATE TABLE [BTVM].[dbo].[SHOWS] (
+                [seriesId]   NCHAR (25)  NOT NULL,
+                [seriesName] NCHAR (255) NOT NULL,
+                [status]     NCHAR (25)  NULL,
+                PRIMARY KEY CLUSTERED ([seriesId] ASC)
+                );";
+
+            using (SqlConnection SQLconn = new SqlConnection(connString))
+            {
+                SqlCommand cmdCreateDB = new SqlCommand(createDB, SQLconn);
+                SqlCommand cmdEpiTbl = new SqlCommand(createEpiTbl, SQLconn);
+                SqlCommand cmdShowTbl = new SqlCommand(createShowTbl,SQLconn);
+
+                try
+                {
+                    if (SQLconn.State == ConnectionState.Closed)
+                    {
+                        SQLconn.Open();
+                    }
+                    cmdCreateDB.ExecuteNonQuery();
+                    cmdEpiTbl.ExecuteNonQuery();
+                    cmdShowTbl.ExecuteNonQuery();
+
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show(e.Message, "ERROR");
+                }
+            }
+        }
 
         //NEED TO INCLUDE ID ADND STATUS FOR COMAPRO
         private List<string> SQL_get_all_show_IDs()
@@ -377,6 +437,7 @@ namespace BTVM
                     }
 
                     SqlDataReader reader = command.ExecuteReader();
+
 
                     while (reader.Read())
                     {
@@ -496,23 +557,22 @@ namespace BTVM
         //****************************************************************************************************************************
         // NEW FANGLED LISTENER SHIT
 
-
         /// <summary>
         /// Listener here only reacts to Form2 messages
         /// </summary>
         /// <param name="message">Incoming message</param>
         /// <param name="sender">Calling form</param>
-
-
+        
         /// <summary>
         /// Send simple text message to all listeners
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-
-
+        
         private void Form1_Shown(object sender, EventArgs e)
         {
+            check_config();
+            label2.Text = (BTVM.Properties.Settings.Default.MediaFolder);
             //SimpleMessageToChildTextBox.Text = $"From {Name} at {DateTime.Now:F}";
         }
 
@@ -525,6 +585,7 @@ namespace BTVM
         {
             Close();
         }
+
         /// <summary>
         /// Show two instances of Form2
         /// </summary>
